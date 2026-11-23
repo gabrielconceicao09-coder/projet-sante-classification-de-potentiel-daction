@@ -28,13 +28,15 @@ def make_spike_col(signal_filt, spike_idx, centered_time_window, fs): #Extraire 
 
 def wavelet_decomp_df(signal_mat, wavelet_ = 'db4'): #signal_mat liste de signaux, wavelet le type d'ondelettes
     coeff_array = []
+    coeff_display_array = []
     for signal in signal_mat:
         decomp_result = pywt.wavedec(signal, wavelet=wavelet_)
         coeff_list = []
         for C in decomp_result:
             coeff_list = np.append(coeff_list, C)
         coeff_array.append(coeff_list)
-    return pd.DataFrame(coeff_array).add_prefix("C")
+        coeff_display_array.append(decomp_result)
+    return pd.DataFrame(coeff_array).add_prefix("C"), coeff_display_array
 
 def sort_cols_var(df): #Ordonner les colonnes en fonction de la variance. sorted_cols est une liste des noms des colonnes ordonnées
     #columns = list(df.columns)
@@ -86,9 +88,8 @@ mat = {}
 mat["signal"], mat["spikes_left_bounds"] = make_spike_col(signal_filt, spike_indexes, 0.003, Fs) 
 mat["peak_og_index"] = spike_indexes
 
-t = np.linspace(0, len(mat["signal"][0])/Fs, len(mat["signal"][0]))
 
-coeff_df = wavelet_decomp_df(mat["signal"])
+coeff_df, coeff_display = wavelet_decomp_df(mat["signal"])
 print(coeff_df)
 
 sorted_cols, sorted_cols_var = sort_cols_var(coeff_df)
@@ -100,3 +101,29 @@ for i in range(ncoeffs):
     wavelet_df = pd.concat([wavelet_df, coeff_df[col]], axis = 1)
 
 print(wavelet_df)
+
+
+
+t = np.linspace(0, len(mat["signal"][0])/Fs, len(mat["signal"][0]))
+def plot_wavelet_decomp(og_signal, time, coeffs, n_coef_plots): #og_signal le signal décomposé, time l'array d'instants pour le signal, coeffs les coéfficients resultants, n_coef_plots le nombre de coéfficients de détail qu'on veut visualiser
+    level = len(coeffs)-1
+    if n_coef_plots <= level:
+        fig, axes = plt.subplots(n_coef_plots + 2, 1, figsize=(10,10), sharex=False)
+        axes[0].plot(time, og_signal, "k")
+        axes[0].set_title("Spike")
+        axes[0].set_ylabel("Amplitude")
+
+        axes[1].plot(coeffs[0], 'b')
+        axes[1].set_title(f"Coéfficients d'Approximation (cA{level})")
+        axes[1].set_ylabel("Amplitude")
+
+        for i in range(1, n_coef_plots+1):
+            axes[i+1].plot(coeffs[i], "r")
+            axes[i+1].set_title(f"Coéfficients de Détail (cD{n_coef_plots-i+1})")
+            axes[i+1].set_ylabel("Amplitude")
+        plt.tight_layout()
+        plt.show()
+    else:
+        print(f"Nombre de coéfficients demandé ({n_coef_plots}) est plus grand que le nombre de niveaux de la décomposition ({level})")
+
+plot_wavelet_decomp(mat["signal"][0], t, coeff_display[0], 3)
