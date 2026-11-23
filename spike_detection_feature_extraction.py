@@ -5,7 +5,9 @@ import scipy.io as sio
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
 import seaborn as sns
+import pywt
 
 def apply_highpass(signal, order, fc, fs_):
     hpf_sos = ssig.butter(order, fc, 'highpass', output='sos', fs=fs_)
@@ -134,3 +136,53 @@ ax2.set_xlabel('DIM1')
 ax2.set_ylabel('DIM3')
 
 plt.show()
+
+
+#Wavelet decomp-----------------------
+
+mat1 = {}
+mat1["signal"], mat1["spikes_left_bounds"] = make_spike_col(signal_filt, spike_indexes, 0.002, Fs)
+wt_df = pd.DataFrame(mat1)
+
+cAs = []
+cDs = []
+for signal in mat1["signal"]:
+    cA, cD = pywt.dwt(signal, wavelet='db1')
+    cAs.append(cA)
+    cDs.append(cD)
+cAs_df = pd.DataFrame(cAs)
+cAs_df = cAs_df.add_prefix("cA")
+print(cAs[0])
+cDs_df = pd.DataFrame(cDs)
+cDs_df = cDs_df.add_prefix("cD")
+wt_df = pd.concat([wt_df, cAs_df, cDs_df], axis=1)
+Y = wt_df.drop(columns=["signal",'spikes_left_bounds'])
+Y_scaled = scaler.fit_transform(Y)
+wavelet_projection = spike_acp.fit_transform(Y_scaled)
+
+wt_acp = pd.DataFrame(wavelet_projection, columns=["DIM1","DIM2","DIM3"])
+
+fig = plt.figure(figsize=(15,6))
+
+ax = fig.add_subplot(projection='3d')
+ax.scatter3D(wt_acp['DIM1'], wt_acp['DIM2'], wt_acp['DIM3'])
+ax.set_title("Projection Décomposition en Ondelettes")
+ax.set_xlabel("DIM1")
+ax.set_ylabel("DIM2")
+ax.set_zlabel("DIM3")
+
+fig1 = plt.figure(figsize=(6,13))
+
+ax1 = fig1.add_subplot(212)
+ax1.scatter(wt_acp['DIM1'], wt_acp['DIM2'])
+ax1.set_xlabel('DIM1')
+ax1.set_ylabel('DIM2')
+
+ax2 = fig1.add_subplot(211)
+ax2.scatter(wt_acp['DIM1'], wt_acp['DIM3'])
+ax2.set_xlabel('DIM1')
+ax2.set_ylabel('DIM3')
+
+plt.show()
+
+kmeans_wt = KMeans(n_clusters=20).fit(Y_scaled)
