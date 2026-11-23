@@ -88,12 +88,15 @@ mat["peak_og_index"] = spike_indexes
 
 t = np.linspace(0, len(mat["signal"][0])/Fs, len(mat["signal"][0]))
 
-wt_df = pd.DataFrame(mat)
-
 coeff_df = wavelet_decomp_df(mat["signal"])
 print(coeff_df)
 
 sorted_cols, sorted_cols_var = sort_cols_var(coeff_df)
 
-wt_df = pd.concat([wt_df, coeff_df], axis=1)
-print(wt_df)
+wavelet_df = pd.DataFrame()
+ncoeffs = 10
+for i in range(ncoeffs):
+    col = sorted_cols[i]
+    wavelet_df = pd.concat([wavelet_df, coeff_df[col]], axis = 1)
+
+print(wavelet_df)
